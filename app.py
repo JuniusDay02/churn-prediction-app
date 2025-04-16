@@ -40,11 +40,11 @@ if predictbutton:
 st.divider()
 if st.button("Fetch from MySQL and Predict for All"):
     data_conn = mysql.connector.connect(
-        host="churndb.c1kio68symiq.ap-south-1.rds.amazonaws.com",
-        user="ChurnAdmin",
-        password="Churn_customer",
-        database="churn_db",
-        port=3306
+        host=st.secrets["DB_HOST"],
+        user=st.secrets["DB_USER"],
+        password=st.secrets["DB_PASSWORD"],
+        database=st.secrets["DB_NAME"],
+        port=int(st.secrets["DB_PORT"])
     )
 
     df = pd.read_sql("SELECT * FROM customer_churn_data", data_conn)
@@ -74,7 +74,7 @@ st.divider()
 def send_email(to_email, name):
     msg = EmailMessage()
     msg['Subject'] = "We're sorry to see you go 😔"
-    msg['From'] = 'voicemetelecom@gmail.com'
+    msg['From'] = st.secrets["EMAIL_ADDRESS"]
     msg['To'] = to_email
 
     msg.set_content(f"""Hi {name},
@@ -117,18 +117,18 @@ The VoiceMe Telecom Team
 
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login('voicemetelecom@gmail.com', 'lbjserofgphkmipv')
+            smtp.login(st.secrets["EMAIL_ADDRESS"], st.secrets["EMAIL_PASSWORD"])
             smtp.send_message(msg)
     except Exception as e:
         st.warning(f"Email to {to_email} skipped. Reason:{e}")
 
 if st.button("Send Emails to Predicted Churn Customers"):
     data_conn = mysql.connector.connect(
-        host="churndb.c1kio68symiq.ap-south-1.rds.amazonaws.com",
-        user="ChurnAdmin",
-        password="Churn_customer",
-        database="churn_db",
-        port=3306
+        host=st.secrets["DB_HOST"],
+        user=st.secrets["DB_USER"],
+        password=st.secrets["DB_PASSWORD"],
+        database=st.secrets["DB_NAME"],
+        port=int(st.secrets["DB_PORT"])
     )
 
     churn_df = pd.read_sql("SELECT * FROM customer_churn_data WHERE ChurnPrediction = 1", data_conn)
