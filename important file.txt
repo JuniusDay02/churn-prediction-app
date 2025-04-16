@@ -1,0 +1,16 @@
+VoiceMe telecom services
+gmail ID: voicemetelecom@gmail.com
+acc pass: 123@voiceme/ 123@voice_me/ New_voiceme
+new app pass: lbjserofgphkmipv
+
+
+aws master username: ChurnAdmin
+pasword: Churn_customer
+
+endpoint: churndb.c1kio68symiq.ap-south-1.rds.amazonaws.com
+port: 3306
+Master username: ChurnAdmin
+password: Churn_customer
+
+
+
