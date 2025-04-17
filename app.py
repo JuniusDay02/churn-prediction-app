@@ -55,18 +55,19 @@ if st.button("Fetch from MySQL and Predict for All"):
     predictions = model.predict(x_scaled)
     df["ChurnPrediction"] = predictions
 
+    cursor = data_conn.cursor()
 
     for i, row in df.iterrows():
-        cursor = data_conn.cursor()
         cursor.execute( 
             "UPDATE customer_churn_data SET ChurnPrediction = %s WHERE CustomerID = %s",
             (int(row["ChurnPrediction"]), int(row["CustomerID"]))
         )
-        cursor.close()
-
-
+    
+    
+    cursor.close()
     data_conn.commit()
     data_conn.close()
+
     st.success("Predictions updated in Database")
 
 #Sending automated emails to Churned Customers
