@@ -39,36 +39,42 @@ if predictbutton:
 #prediction taken from DB
 st.divider()
 if st.button("Fetch from MySQL and Predict for All"):
-    data_conn = mysql.connector.connect(
-        host=st.secrets["DB_HOST"],
-        user=st.secrets["DB_USER"],
-        password=st.secrets["DB_PASSWORD"],
-        database=st.secrets["DB_NAME"],
-        port=int(st.secrets["DB_PORT"])
-    )
-    st.success("Connected to MySQL successfully")
-    df = pd.read_sql("SELECT * FROM customer_churn_data", data_conn)
-    st.write("Fetched rows:", df.shape[0])
-    x_db = df[["Age", "Gender", "Tenure", "MonthlyCharges"]]
-    x_db["Gender"] = x_db["Gender"].apply(lambda x: 1 if x == "Female" else 0)
-    x_scaled = scaler.transform(x_db)
-    predictions = model.predict(x_scaled)
-    df["ChurnPrediction"] = predictions
+    with st.spinner("processing predictions..."):
+        try:
+            data_conn = mysql.connector.connect(
+                host=st.secrets["DB_HOST"],
+                user=st.secrets["DB_USER"],
+                password=st.secrets["DB_PASSWORD"],
+                database=st.secrets["DB_NAME"],
+                port=int(st.secrets["DB_PORT"])
+            )
+            st.success("Connected to MySQL successfully")
+            df = pd.read_sql("SELECT * FROM customer_churn_data", data_conn)
+            st.write("Fetched rows:", df.shape[0])
+            x_db = df[["Age", "Gender", "Tenure", "MonthlyCharges"]]
+            x_db["Gender"] = x_db["Gender"].apply(lambda x: 1 if x == "Female" else 0)
+            x_scaled = scaler.transform(x_db)
+            predictions = model.predict(x_scaled)
+            df["ChurnPrediction"] = predictions
+            
+            cursor = data_conn.cursor()
+            for i, row in df.iterrows():
+                try:
+                    cursor.execute( 
+                        "UPDATE customer_churn_data SET ChurnPrediction = %s WHERE CustomerID = %s",
+                        (int(row["ChurnPrediction"]), int(row["CustomerID"]))
+                    )
+                    st.write(f"updated customer ID: {row["CustomerID"]}")
+                except mysql.connector.Error as e:
+                    st.warning(f"Failed to update Customer ID {row["CustomerID"]}: {e}")
+            cursor.close()
+            data_conn.commit()
+        except Exception as e:
+            st.error(f"An error occured: {e}")
+        finally:
+            data_conn.close()
 
-    cursor = data_conn.cursor()
-
-    for i, row in df.iterrows():
-        cursor.execute( 
-            "UPDATE customer_churn_data SET ChurnPrediction = %s WHERE CustomerID = %s",
-            (int(row["ChurnPrediction"]), int(row["CustomerID"]))
-        )
-    
-    
-    cursor.close()
-    data_conn.commit()
-    data_conn.close()
-
-    st.success("Predictions updated in Database")
+        st.success("Predictions updated in Database")
 
 #Sending automated emails to Churned Customers
 # 
@@ -127,31 +133,38 @@ The VoiceMe Telecom Team
         return False
 
 if st.button("Send Emails to Predicted Churn Customers"):
-    data_conn = mysql.connector.connect(
-        host=st.secrets["DB_HOST"],
-        user=st.secrets["DB_USER"],
-        password=st.secrets["DB_PASSWORD"],
-        database=st.secrets["DB_NAME"],
-        port=int(st.secrets["DB_PORT"])
-    )
-    churn_df = pd.read_sql("SELECT * FROM customer_churn_data WHERE ChurnPrediction = 1", data_conn)
-    for i, row in churn_df.iterrows():
-        if pd.isna(row["Email"]) or row["Email"] == "":
-            row["Email"] = f"user{row['CustomerID']}@voice-me-telecom.com"
-            cursor = data_conn.cursor()
-            cursor.execute(
-                 "UPDATE customer_churn_data SET Email = %s WHERE CustomerID = %s",
-                (row["Email"], row["CustomerID"])
+    with st.spinner("Sending emails...."):
+        try:
+            data_conn = mysql.connector.connect(
+                host=st.secrets["DB_HOST"],
+                user=st.secrets["DB_USER"],
+                password=st.secrets["DB_PASSWORD"],
+                database=st.secrets["DB_NAME"],
+                port=int(st.secrets["DB_PORT"])
             )
-            cursor.close()
-            data_conn.commit()
+            churn_df = pd.read_sql("SELECT * FROM customer_churn_data WHERE ChurnPrediction = 1", data_conn)
+            
+            for i, row in churn_df.iterrows():
+                if pd.isna(row["Email"]) or row["Email"] == "":
+                    row["Email"] = f"user{row['CustomerID']}@voice-me-telecom.com"
+                    cursor = data_conn.cursor()
+                    cursor.execute(
+                        "UPDATE customer_churn_data SET Email = %s WHERE CustomerID = %s",
+                        (row["Email"], row["CustomerID"])
+                    )
+                    cursor.close()
+                    data_conn.commit()
 
-        if send_email(row["Email"], f"Customer {row['CustomerID']}"):
-            if "emailed_customers" not in st.session_state:
-                st.session_state.emailed_customers = []
-            st.session_state.emailed_customers.append({"CustomerID": row["CustomerID"], "Email": row["Email"]})
-
-
-
-    data_conn.close()
-    st.success("Promotional emails sent to churn customers.")
+                if send_email(row["Email"], f"Customer {row['CustomerID']}"):
+                    if "emailed_customers" not in st.session_state:
+                        st.session_state.emailed_customers = []
+                    st.session_state.emailed_customers.append({
+                        "CustomerID": row["CustomerID"], 
+                        "Email": row["Email"]
+                    })
+        except Exception as e:
+            st.error(f"An error occured: {e}")
+        finally:
+            data_conn.close()
+            
+        st.success("Promotional emails sent to churn customers.")
