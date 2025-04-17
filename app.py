@@ -46,8 +46,9 @@ if st.button("Fetch from MySQL and Predict for All"):
         database=st.secrets["DB_NAME"],
         port=int(st.secrets["DB_PORT"])
     )
-
+    st.success("Connected to MySQL successfully")
     df = pd.read_sql("SELECT * FROM customer_churn_data", data_conn)
+    st.write("Fetched rows:", df.shape[0])
     x_db = df[["Age", "Gender", "Tenure", "MonthlyCharges"]]
     x_db["Gender"] = x_db["Gender"].apply(lambda x: 1 if x == "Female" else 0)
     x_scaled = scaler.transform(x_db)
@@ -130,9 +131,7 @@ if st.button("Send Emails to Predicted Churn Customers"):
         database=st.secrets["DB_NAME"],
         port=int(st.secrets["DB_PORT"])
     )
-    st.success("connected to MySQL successfully")
     churn_df = pd.read_sql("SELECT * FROM customer_churn_data WHERE ChurnPrediction = 1", data_conn)
-    st.write("fetched rows:",df.shape[0])
     for i, row in churn_df.iterrows():
         if send_email(row["Email"], f"Customer {row['CustomerID']}"):
             st.session_state.emailed_customers.append({"CustomerID": row["CustomerID"], "Email": row["Email"]})
