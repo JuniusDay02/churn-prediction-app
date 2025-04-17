@@ -32,12 +32,13 @@ predictions = model.predict(x_scaled)
 df["ChurnPrediction"] = predictions
 
 # storing predictions in the Database 
+cursor= data_conn.cursor()
 for i, row in df.iterrows():
     cursor.execute(
         "UPDATE customer_churn_data SET ChurnPrediction = %s WHERE CustomerID = %s",
         (int(row["ChurnPrediction"]), int(row["CustomerID"]))
     )
 
-data_conn.commit()
 cursor.close()
+data_conn.commit()
 data_conn.close()
