@@ -120,8 +120,10 @@ The VoiceMe Telecom Team
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(st.secrets["EMAIL_ADDRESS"], st.secrets["EMAIL_PASSWORD"])
             smtp.send_message(msg)
+        return True
     except Exception as e:
         st.warning(f"Email to {to_email} skipped. Reason:{e}")
+        return False
 
 if st.button("Send Emails to Predicted Churn Customers"):
     data_conn = mysql.connector.connect(
@@ -133,7 +135,19 @@ if st.button("Send Emails to Predicted Churn Customers"):
     )
     churn_df = pd.read_sql("SELECT * FROM customer_churn_data WHERE ChurnPrediction = 1", data_conn)
     for i, row in churn_df.iterrows():
+        if pd.isna(row["Email"]) or row["Email"] == "":
+            row["Email"] = f"user{row['CustomerID']}@voice-me-telecom.com"
+            cursor = data_conn.cursor()
+            cursor.execute(
+                 "UPDATE customer_churn_data SET Email = %s WHERE CustomerID = %s",
+                (row["Email"], row["CustomerID"])
+            )
+            cursor.close()
+            data_conn.commit()
+
         if send_email(row["Email"], f"Customer {row['CustomerID']}"):
+            if "emailed_customers" not in st.session_state:
+                st.session_state.emailed_customers = []
             st.session_state.emailed_customers.append({"CustomerID": row["CustomerID"], "Email": row["Email"]})
 
 
