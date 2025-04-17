@@ -130,9 +130,9 @@ if st.button("Send Emails to Predicted Churn Customers"):
         database=st.secrets["DB_NAME"],
         port=int(st.secrets["DB_PORT"])
     )
-
+    st.success("connected to MySQL successfully")
     churn_df = pd.read_sql("SELECT * FROM customer_churn_data WHERE ChurnPrediction = 1", data_conn)
-
+    st.write("fetched rows:",df.shape[0])
     for i, row in churn_df.iterrows():
         if send_email(row["Email"], f"Customer {row['CustomerID']}"):
             st.session_state.emailed_customers.append({"CustomerID": row["CustomerID"], "Email": row["Email"]})
