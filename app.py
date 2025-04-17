@@ -57,8 +57,12 @@ if st.button("Fetch from MySQL and Predict for All"):
             predictions = model.predict(x_scaled)
             df["ChurnPrediction"] = predictions
             
+            #efficient batch update
             cursor = data_conn.cursor()
-            for i, row in df.iterrows():
+            update_query = "UPDATE customer_churn_data SET ChurnPrediction = %s WHERE CustomerID = %s"
+            update_data = [(int(row["ChurnPrediction"]), int(row["CustomerID"])) for _, row in df.iterrows()]
+            cursor.executemany(update_query, update_data)
+            """for i, row in df.iterrows():
                 try:
                     cursor.execute( 
                         "UPDATE customer_churn_data SET ChurnPrediction = %s WHERE CustomerID = %s",
@@ -66,7 +70,7 @@ if st.button("Fetch from MySQL and Predict for All"):
                     )
                     st.write(f"updated customer ID: {row["CustomerID"]}")
                 except mysql.connector.Error as e:
-                    st.warning(f"Failed to update Customer ID {row["CustomerID"]}: {e}")
+                    st.warning(f"Failed to update Customer ID {row["CustomerID"]}: {e}") """
             cursor.close()
             data_conn.commit()
         except Exception as e:
@@ -166,5 +170,5 @@ if st.button("Send Emails to Predicted Churn Customers"):
             st.error(f"An error occured: {e}")
         finally:
             data_conn.close()
-            
+
         st.success("Promotional emails sent to churn customers.")
